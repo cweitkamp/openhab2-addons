@@ -17,164 +17,173 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 
 /**
  * See {@link DevicelistModel}.
- * 
+ *
  * @author Christoph Weitkamp
- * 
- * 
+ *
+ *
  */
 @XmlRootElement(name = "hkr")
 @XmlType(propOrder = { "tist", "tsoll", "absenk", "komfort", "lock", "devicelock", "errorcode", "batterylow",
-		"nextchange" })
+        "nextchange" })
 public class HeatingModel {
-	public static final BigDecimal TEMP_FACTOR = new BigDecimal("0.5");
-	public static final BigDecimal TEMP_MIN = new BigDecimal("8.0");
-	public static final BigDecimal TEMP_MAX = new BigDecimal("28.0");
-	public static final BigDecimal TEMP_OFF = new BigDecimal("253.0");
-	public static final BigDecimal TEMP_ON = new BigDecimal("254.0");
-	public static final BigDecimal BATTERY_OFF = BigDecimal.ZERO;
-	public static final BigDecimal BATTERY_ON = BigDecimal.ONE;
-	public static final BigDecimal ON = BigDecimal.ONE;
-	public static final BigDecimal OFF = BigDecimal.ZERO;
 
-	protected BigDecimal tist;
-	protected BigDecimal tsoll;
-	protected BigDecimal absenk;
-	protected BigDecimal komfort;
-	protected BigDecimal lock;
-	protected BigDecimal devicelock;
-	protected String errorcode;
-	protected BigDecimal batterylow;
-	protected Nextchange nextchange;
+    public static final BigDecimal TEMP_FACTOR = new BigDecimal("0.5");
+    public static final BigDecimal TEMP_MIN_CELSIUS = new BigDecimal("8");
+    public static final BigDecimal TEMP_MAX_CELSIUS = new BigDecimal("28");
+    public static final BigDecimal TEMP_OFF = new BigDecimal("253");
+    public static final BigDecimal TEMP_ON = new BigDecimal("254");
+    public static final BigDecimal BATTERY_OFF = BigDecimal.ZERO;
+    public static final BigDecimal BATTERY_ON = BigDecimal.ONE;
+    public static final BigDecimal ON = BigDecimal.ONE;
+    public static final BigDecimal OFF = BigDecimal.ZERO;
 
-	public BigDecimal getTist() {
-		return tist != null ? tist.multiply(TEMP_FACTOR) : BigDecimal.ZERO;
-	}
+    protected BigDecimal tist;
+    protected BigDecimal tsoll;
+    protected BigDecimal absenk;
+    protected BigDecimal komfort;
+    protected BigDecimal lock;
+    protected BigDecimal devicelock;
+    protected String errorcode;
+    protected BigDecimal batterylow;
+    protected Nextchange nextchange;
 
-	public void setTist(BigDecimal tist) {
-		this.tist = tist;
-	}
+    public static BigDecimal HKRValToCelsius(BigDecimal hkrVal) {
+        return hkrVal.multiply(TEMP_FACTOR);
+    }
 
-	public BigDecimal getTsoll() {
-		if (tsoll == null) {
-			return BigDecimal.ZERO;
-		} else if (tsoll.compareTo(TEMP_ON) == 0) {
-			return TEMP_MAX.add(new BigDecimal("2.0"));
-		} else if (tsoll.compareTo(TEMP_OFF) == 0) {
-			return TEMP_MIN.subtract(new BigDecimal("2.0"));
-		} else {
-			return tsoll.multiply(TEMP_FACTOR);
-		}
-	}
+    public static BigDecimal CelsiusToHKRVal(BigDecimal celsius) {
+        return celsius.divide(TEMP_FACTOR);
+    }
 
-	public void setTsoll(BigDecimal tsoll) {
-		this.tsoll = tsoll;
-	}
+    public BigDecimal getTist() {
+        return tist != null ? tist.multiply(TEMP_FACTOR) : BigDecimal.ZERO;
+    }
 
-	public BigDecimal getKomfort() {
-		return komfort != null ? komfort.multiply(TEMP_FACTOR) : BigDecimal.ZERO;
-	}
+    public void setTist(BigDecimal tist) {
+        this.tist = tist;
+    }
 
-	public void setKomfort(BigDecimal komfort) {
-		this.komfort = komfort;
-	}
+    public BigDecimal getTsoll() {
+        if (tsoll == null) {
+            return TEMP_MIN_CELSIUS;
+        } else if (tsoll.compareTo(TEMP_ON) == 0 || tsoll.compareTo(TEMP_OFF) == 0) {
+            return tsoll;
+        } else {
+            return tsoll;
+        }
+    }
 
-	public BigDecimal getAbsenk() {
-		return absenk != null ? absenk.multiply(TEMP_FACTOR) : BigDecimal.ZERO;
-	}
+    public void setTsoll(BigDecimal tsoll) {
+        this.tsoll = tsoll;
+    }
 
-	public void setAbsenk(BigDecimal absenk) {
-		this.absenk = absenk;
-	}
+    public BigDecimal getKomfort() {
+        return komfort != null ? komfort : BigDecimal.ZERO;
+    }
 
-	public BigDecimal getLock() {
-		return lock;
-	}
+    public void setKomfort(BigDecimal komfort) {
+        this.komfort = komfort;
+    }
 
-	public void setLock(BigDecimal lock) {
-		this.lock = lock;
-	}
+    public BigDecimal getAbsenk() {
+        return absenk != null ? absenk : BigDecimal.ZERO;
+    }
 
-	public BigDecimal getDevicelock() {
-		return devicelock;
-	}
+    public void setAbsenk(BigDecimal absenk) {
+        this.absenk = absenk;
+    }
 
-	public void setDevicelock(BigDecimal devicelock) {
-		this.devicelock = devicelock;
-	}
+    public BigDecimal getLock() {
+        return lock;
+    }
 
-	public String getErrorcode() {
-		return errorcode;
-	}
+    public void setLock(BigDecimal lock) {
+        this.lock = lock;
+    }
 
-	public void setErrorcode(String errorcode) {
-		this.errorcode = errorcode;
-	}
+    public BigDecimal getDevicelock() {
+        return devicelock;
+    }
 
-	public BigDecimal getBatterylow() {
-		return batterylow;
-	}
+    public void setDevicelock(BigDecimal devicelock) {
+        this.devicelock = devicelock;
+    }
 
-	public void setBatterylow(BigDecimal batterylow) {
-		this.batterylow = batterylow;
-	}
+    public String getErrorcode() {
+        return errorcode;
+    }
 
-	public Nextchange getNextchange() {
-		return nextchange;
-	}
+    public void setErrorcode(String errorcode) {
+        this.errorcode = errorcode;
+    }
 
-	public void setNextchange(Nextchange value) {
-		this.nextchange = value;
-	}
+    public BigDecimal getBatterylow() {
+        return batterylow;
+    }
 
-	public String toString() {
-		return new ToStringBuilder(this).append("tist", this.getTist()).append("tsoll", this.getTsoll())
-				.append("absenk", this.getAbsenk()).append("komfort", this.getKomfort()).append("lock", this.getLock())
-				.append("devicelock", this.getDevicelock()).append("errorcode", this.getErrorcode())
-				.append("batterylow", this.getBatterylow()).append("nextchange", this.getNextchange()).toString();
-	}
+    public void setBatterylow(BigDecimal batterylow) {
+        this.batterylow = batterylow;
+    }
 
-	@XmlType(name = "", propOrder = { "endperiod", "tchange" })
-	public static class Nextchange {
+    public Nextchange getNextchange() {
+        return nextchange;
+    }
 
-		protected int endperiod;
-		protected BigDecimal tchange;
+    public void setNextchange(Nextchange value) {
+        this.nextchange = value;
+    }
 
-		/**
-		 * Ruft den Wert der endperiod-Eigenschaft ab.
-		 * 
-		 */
-		public int getEndperiod() {
-			return endperiod;
-		}
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this).append("tist", this.getTist()).append("tsoll", this.getTsoll())
+                .append("absenk", this.getAbsenk()).append("komfort", this.getKomfort()).append("lock", this.getLock())
+                .append("devicelock", this.getDevicelock()).append("errorcode", this.getErrorcode())
+                .append("batterylow", this.getBatterylow()).append("nextchange", this.getNextchange()).toString();
+    }
 
-		/**
-		 * Legt den Wert der endperiod-Eigenschaft fest.
-		 * 
-		 */
-		public void setEndperiod(int value) {
-			this.endperiod = value;
-		}
+    @XmlType(name = "", propOrder = { "endperiod", "tchange" })
+    public static class Nextchange {
 
-		/**
-		 * Ruft den Wert der tchange-Eigenschaft ab.
-		 * 
-		 */
-		public BigDecimal getTchange() {
-			return tchange != null ? tchange.multiply(TEMP_FACTOR) : BigDecimal.ZERO;
-		}
+        protected int endperiod;
+        protected BigDecimal tchange;
 
-		/**
-		 * Legt den Wert der tchange-Eigenschaft fest.
-		 * 
-		 */
-		public void setTchange(BigDecimal value) {
-			this.tchange = value;
-		}
+        /**
+         * Ruft den Wert der endperiod-Eigenschaft ab.
+         *
+         */
+        public int getEndperiod() {
+            return endperiod;
+        }
 
-		public String toString() {
-			return new ToStringBuilder(this).append("endperiod", this.getEndperiod())
-					.append("tchange", this.getTchange()).toString();
-		}
+        /**
+         * Legt den Wert der endperiod-Eigenschaft fest.
+         *
+         */
+        public void setEndperiod(int value) {
+            this.endperiod = value;
+        }
 
-	}
+        /**
+         * Ruft den Wert der tchange-Eigenschaft ab.
+         *
+         */
+        public BigDecimal getTchange() {
+            return tchange != null ? tchange : BigDecimal.ZERO;
+        }
+
+        /**
+         * Legt den Wert der tchange-Eigenschaft fest.
+         *
+         */
+        public void setTchange(BigDecimal value) {
+            this.tchange = value;
+        }
+
+        @Override
+        public String toString() {
+            return new ToStringBuilder(this).append("endperiod", this.getEndperiod())
+                    .append("tchange", this.getTchange()).toString();
+        }
+
+    }
 }
