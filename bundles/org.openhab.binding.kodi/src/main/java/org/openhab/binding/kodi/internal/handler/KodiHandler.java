@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,7 @@ import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
 import org.eclipse.smarthome.core.thing.ThingStatusDetail;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
+import org.eclipse.smarthome.core.thing.binding.ThingHandlerService;
 import org.eclipse.smarthome.core.thing.type.ChannelTypeUID;
 import org.eclipse.smarthome.core.types.Command;
 import org.eclipse.smarthome.core.types.RefreshType;
@@ -54,6 +57,7 @@ import org.eclipse.smarthome.core.types.UnDefType;
 import org.openhab.binding.kodi.internal.KodiDynamicStateDescriptionProvider;
 import org.openhab.binding.kodi.internal.KodiEventListener;
 import org.openhab.binding.kodi.internal.KodiPlayerState;
+import org.openhab.binding.kodi.internal.actions.KodiActions;
 import org.openhab.binding.kodi.internal.config.KodiChannelConfig;
 import org.openhab.binding.kodi.internal.config.KodiConfig;
 import org.openhab.binding.kodi.internal.model.KodiAudioStream;
@@ -116,6 +120,11 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
         if (connection != null) {
             connection.close();
         }
+    }
+
+    @Override
+    public Collection<Class<? extends ThingHandlerService>> getServices() {
+        return Collections.singletonList(KodiActions.class);
     }
 
     private int getIntConfigParameter(String key, int defaultValue) {
@@ -334,11 +343,27 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
                 BigDecimal displayTime = (BigDecimal) channel.getConfiguration()
                         .get(CHANNEL_TYPE_SHOWNOTIFICATION_PARAM_DISPLAYTIME);
                 String icon = (String) channel.getConfiguration().get(CHANNEL_TYPE_SHOWNOTIFICATION_PARAM_ICON);
-                connection.showNotification(title, displayTime, icon, command.toString());
+                showNotification(title, displayTime, icon, command.toString());
             }
             updateState(channelUID, UnDefType.UNDEF);
         } else if (RefreshType.REFRESH == command) {
             updateState(channelUID, UnDefType.UNDEF);
+        }
+    }
+
+    /**
+     * Shows a user-defined title, icon and message on the Kodi Media Center.
+     *
+     * @param title The title of the notification
+     * @param displayTime Time the notification is displayed (in milliseconds)
+     * @param icon The icon of the notification (can be null)
+     * @param message The message
+     */
+    public void showNotification(String title, BigDecimal displayTime, @Nullable String icon, String message) {
+        if (!isOnline()) {
+            logger.warn("Skipping 'showNotification' due to Kodi is not ONLINE.");
+        } else {
+            connection.showNotification(title, displayTime, icon, message);
         }
     }
 
@@ -351,6 +376,10 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
         String userInfo = (StringUtils.isEmpty(httpUser) || StringUtils.isEmpty(httpPassword)) ? null
                 : String.format("%s:%s", httpUser, httpPassword);
         return new URI("http", userInfo, host, httpPort, "/image/", null, null);
+    }
+
+    public boolean isOnline() {
+        return ThingStatus.ONLINE.equals(getThing().getStatus());
     }
 
     public void stop() {

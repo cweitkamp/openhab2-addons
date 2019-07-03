@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 /**
  * This makes Kodi to serve as an {@link AudioSink}.
  *
- * @author Kai Kreuzer - Initial contribution and API
+ * @author Kai Kreuzer - Initial contribution
  * @author Paul Frank - Adapted for Kodi
  * @author Christoph Weitkamp - Improvements for playing audio notifications
  */
@@ -73,7 +73,9 @@ public class KodiAudioSink implements AudioSink {
     @Override
     public void process(AudioStream audioStream)
             throws UnsupportedAudioFormatException, UnsupportedAudioStreamException {
-        if (audioStream == null) {
+        if (!handler.isOnline()) {
+            logger.warn("Skipping audio stream due to Kodi is not ONLINE.");
+        } else if (audioStream == null) {
             // in case the audioStream is null, this should be interpreted as a request to end any currently playing
             // stream.
             logger.trace("Stop currently playing stream.");
@@ -98,7 +100,7 @@ public class KodiAudioSink implements AudioSink {
                     logger.trace("Processing audioStream URL {} of format {}.", url, format);
                     handler.playNotificationSoundURI(new StringType(url));
                 } else {
-                    logger.warn("We do not have any callback url, so Kodi cannot play the audio stream!");
+                    logger.warn("We do not have any callback url, Kodi cannot play the audio stream!");
                 }
             } else {
                 throw new UnsupportedAudioStreamException(

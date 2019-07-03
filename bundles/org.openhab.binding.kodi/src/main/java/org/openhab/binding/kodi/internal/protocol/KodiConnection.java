@@ -1237,9 +1237,9 @@ public class KodiConnection implements KodiClientSocketEventListener {
         socket.callMethod("Player.Open", params);
     }
 
-    public synchronized void showNotification(String title, BigDecimal displayTime, String icon, String message) {
+    public synchronized void showNotification(String title, BigDecimal displayTime, @Nullable String icon,
+            String message) {
         JsonObject params = new JsonObject();
-        params.addProperty("message", message);
         if (title != null) {
             params.addProperty("title", title);
         }
@@ -1249,6 +1249,7 @@ public class KodiConnection implements KodiClientSocketEventListener {
         if (icon != null) {
             params.addProperty("image", callbackUrl + "/icon/" + icon.toLowerCase() + ".png");
         }
+        params.addProperty("message", message);
         socket.callMethod("GUI.ShowNotification", params);
     }
 
