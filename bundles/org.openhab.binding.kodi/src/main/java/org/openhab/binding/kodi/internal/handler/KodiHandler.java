@@ -93,9 +93,6 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
     private final KodiConnection connection;
     private final KodiDynamicStateDescriptionProvider stateDescriptionProvider;
 
-    private final ChannelUID volumeChannelUID;
-    private final ChannelUID mutedChannelUID;
-    private final ChannelUID favoriteChannelUID;
     private final ChannelUID profileChannelUID;
 
     private ScheduledFuture<?> connectionCheckerFuture;
@@ -108,9 +105,6 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
 
         this.stateDescriptionProvider = stateDescriptionProvider;
 
-        volumeChannelUID = new ChannelUID(getThing().getUID(), CHANNEL_VOLUME);
-        mutedChannelUID = new ChannelUID(getThing().getUID(), CHANNEL_MUTE);
-        favoriteChannelUID = new ChannelUID(getThing().getUID(), CHANNEL_PLAYFAVORITE);
         profileChannelUID = new ChannelUID(getThing().getUID(), CHANNEL_PROFILE);
     }
 
@@ -219,9 +213,9 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
             case CHANNEL_PLAYFAVORITE:
                 if (command instanceof StringType) {
                     playFavorite(command);
-                    updateState(favoriteChannelUID, UnDefType.UNDEF);
+                    updateState(CHANNEL_PLAYFAVORITE, UnDefType.UNDEF);
                 } else if (RefreshType.REFRESH == command) {
-                    updateState(favoriteChannelUID, UnDefType.UNDEF);
+                    updateState(CHANNEL_PLAYFAVORITE, UnDefType.UNDEF);
                 }
                 break;
             case CHANNEL_PVR_OPEN_TV:
@@ -278,8 +272,6 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
             case CHANNEL_PROFILE:
                 if (command instanceof StringType) {
                     connection.profile(command.toString());
-                } else if (RefreshType.REFRESH == command) {
-                    connection.updateCurrentProfile();
                 }
                 break;
             case CHANNEL_ARTIST:
@@ -676,12 +668,13 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
     }
 
     private void updateFavoriteChannelStateDescription() {
-        if (isLinked(favoriteChannelUID)) {
+        if (isLinked(CHANNEL_PLAYFAVORITE)) {
             List<StateOption> options = new ArrayList<>();
             for (KodiFavorite favorite : connection.getFavorites()) {
                 options.add(new StateOption(favorite.getTitle(), favorite.getTitle()));
             }
-            stateDescriptionProvider.setStateOptions(favoriteChannelUID, options);
+            stateDescriptionProvider.setStateOptions(new ChannelUID(getThing().getUID(), CHANNEL_PLAYFAVORITE),
+                    options);
         }
     }
 
@@ -738,9 +731,7 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
         if (connected) {
             updateStatus(ThingStatus.ONLINE);
             scheduler.schedule(() -> connection.getSystemProperties(), 1, TimeUnit.SECONDS);
-            if (isLinked(volumeChannelUID) || isLinked(mutedChannelUID)) {
-                scheduler.schedule(() -> connection.updateVolume(), 1, TimeUnit.SECONDS);
-            }
+            scheduler.schedule(() -> connection.updateVolume(), 1, TimeUnit.SECONDS);
             if (isLinked(profileChannelUID)) {
                 scheduler.schedule(() -> connection.updateCurrentProfile(), 1, TimeUnit.SECONDS);
             }
@@ -765,7 +756,7 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
 
     @Override
     public void updateVolume(int volume) {
-        updateState(volumeChannelUID, new PercentType(volume));
+        updateState(CHANNEL_VOLUME, new PercentType(volume));
     }
 
     @Override
@@ -797,7 +788,11 @@ public class KodiHandler extends BaseThingHandler implements KodiEventListener {
 
     @Override
     public void updateMuted(boolean muted) {
-        updateState(mutedChannelUID, muted ? OnOffType.ON : OnOffType.OFF);
+        if (muted) {
+            updateState(CHANNEL_MUTE, OnOffType.ON);
+        } else {
+            updateState(CHANNEL_MUTE, OnOffType.OFF);
+        }
     }
 
     @Override
