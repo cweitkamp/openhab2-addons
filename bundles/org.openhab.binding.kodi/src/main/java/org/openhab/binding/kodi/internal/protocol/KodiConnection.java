@@ -1103,8 +1103,8 @@ public class KodiConnection implements KodiClientSocketEventListener {
                 }
             }
         } else {
-            listener.updateMuted(false);
             listener.updateVolume(100);
+            listener.updateMuted(false);
         }
     }
 
