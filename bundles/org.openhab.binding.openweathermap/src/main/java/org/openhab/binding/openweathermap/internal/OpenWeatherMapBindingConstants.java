@@ -36,11 +36,14 @@ public class OpenWeatherMapBindingConstants {
     public static final ThingTypeUID THING_TYPE_WEATHER_AND_FORECAST = new ThingTypeUID(BINDING_ID,
             "weather-and-forecast");
     public static final ThingTypeUID THING_TYPE_UVINDEX = new ThingTypeUID(BINDING_ID, "uvindex");
+    public static final ThingTypeUID THING_TYPE_PWS = new ThingTypeUID(BINDING_ID, "pws");
 
     // List of all properties
     public static final String CONFIG_API_KEY = "apikey";
     public static final String CONFIG_LANGUAGE = "language";
     public static final String CONFIG_LOCATION = "location";
+    public static final String CONFIG_STATION_ID = "stationId";
+    public static final String CONFIG_EXTERNAL_ID = "externalId";
 
     // Channel group types
     public static final ChannelGroupTypeUID CHANNEL_GROUP_TYPE_STATION = new ChannelGroupTypeUID(BINDING_ID, "station");
@@ -56,6 +59,7 @@ public class OpenWeatherMapBindingConstants {
     public static final String CHANNEL_GROUP_FORECAST_TODAY = "forecastToday";
     public static final String CHANNEL_GROUP_FORECAST_TOMORROW = "forecastTomorrow";
     public static final String CHANNEL_GROUP_CURRENT_UVINDEX = "current";
+    public static final String CHANNEL_GROUP_INPUT = "input";
 
     // List of all channels
     public static final String CHANNEL_STATION_ID = "id";

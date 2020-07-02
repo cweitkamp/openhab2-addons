@@ -14,7 +14,10 @@ package org.openhab.binding.openweathermap.internal.handler;
 
 import static org.openhab.binding.openweathermap.internal.OpenWeatherMapBindingConstants.*;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +27,8 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.smarthome.config.core.Configuration;
 import org.eclipse.smarthome.core.i18n.LocaleProvider;
+import org.eclipse.smarthome.core.i18n.LocationProvider;
+import org.eclipse.smarthome.core.library.types.PointType;
 import org.eclipse.smarthome.core.thing.Bridge;
 import org.eclipse.smarthome.core.thing.ChannelUID;
 import org.eclipse.smarthome.core.thing.Thing;
@@ -32,10 +37,18 @@ import org.eclipse.smarthome.core.thing.ThingStatusDetail;
 import org.eclipse.smarthome.core.thing.ThingTypeUID;
 import org.eclipse.smarthome.core.thing.binding.BaseBridgeHandler;
 import org.eclipse.smarthome.core.thing.binding.ThingHandler;
+import org.eclipse.smarthome.core.thing.binding.ThingHandlerService;
 import org.eclipse.smarthome.core.types.Command;
 import org.eclipse.smarthome.core.types.RefreshType;
+import org.openhab.binding.openweathermap.internal.actions.OpenWeatherMapThingActions;
 import org.openhab.binding.openweathermap.internal.config.OpenWeatherMapAPIConfiguration;
+import org.openhab.binding.openweathermap.internal.connection.OpenWeatherMapCommunicationException;
+import org.openhab.binding.openweathermap.internal.connection.OpenWeatherMapConfigurationException;
 import org.openhab.binding.openweathermap.internal.connection.OpenWeatherMapConnection;
+import org.openhab.binding.openweathermap.internal.console.OpenWeatherMapConsoleCommandExtension;
+import org.openhab.binding.openweathermap.internal.discovery.OpenWeatherMapPWSDiscoveryService;
+import org.openhab.binding.openweathermap.internal.dto.stations.OpenWeatherMapJsonMeasurementsData;
+import org.openhab.binding.openweathermap.internal.dto.stations.OpenWeatherMapJsonStationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,15 +69,19 @@ public class OpenWeatherMapAPIHandler extends BaseBridgeHandler {
     private @Nullable ScheduledFuture<?> refreshJob;
 
     private final HttpClient httpClient;
+    private final LocationProvider locationProvider;
     private final LocaleProvider localeProvider;
     private @NonNullByDefault({}) OpenWeatherMapConnection connection;
+    private @Nullable OpenWeatherMapPWSDiscoveryService discoveryService;
 
     // keeps track of the parsed config
     private @NonNullByDefault({}) OpenWeatherMapAPIConfiguration config;
 
-    public OpenWeatherMapAPIHandler(Bridge bridge, HttpClient httpClient, LocaleProvider localeProvider) {
+    public OpenWeatherMapAPIHandler(Bridge bridge, HttpClient httpClient, LocationProvider locationProvider,
+            LocaleProvider localeProvider) {
         super(bridge);
         this.httpClient = httpClient;
+        this.locationProvider = locationProvider;
         this.localeProvider = localeProvider;
     }
 
@@ -74,7 +91,8 @@ public class OpenWeatherMapAPIHandler extends BaseBridgeHandler {
         config = getConfigAs(OpenWeatherMapAPIConfiguration.class);
 
         boolean configValid = true;
-        if (config.apikey == null || config.apikey.trim().isEmpty()) {
+        String apikey = config.apikey;
+        if (apikey == null || apikey.trim().isEmpty()) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
                     "@text/offline.conf-error-missing-apikey");
             configValid = false;
@@ -150,6 +168,12 @@ public class OpenWeatherMapAPIHandler extends BaseBridgeHandler {
         determineBridgeStatus();
     }
 
+    @Override
+    public Collection<Class<? extends ThingHandlerService>> getServices() {
+        return Collections.unmodifiableList(Arrays.asList(OpenWeatherMapPWSDiscoveryService.class,
+                OpenWeatherMapConsoleCommandExtension.class, OpenWeatherMapThingActions.class));
+    }
+
     private void determineBridgeStatus() {
         ThingStatus status = ThingStatus.OFFLINE;
         for (Thing thing : getThing().getThings()) {
@@ -172,16 +196,133 @@ public class OpenWeatherMapAPIHandler extends BaseBridgeHandler {
     }
 
     private ThingStatus updateThing(@Nullable AbstractOpenWeatherMapHandler handler, Thing thing) {
-        if (handler != null && connection != null) {
+        if (handler != null) {
             handler.updateData(connection);
             return thing.getStatus();
         } else {
-            logger.debug("Cannot update weather data of thing '{}' as location handler is null.", thing.getUID());
+            logger.debug("Cannot update weather data of thing '{}' as handler is null.", thing.getUID());
             return ThingStatus.OFFLINE;
         }
     }
 
     public OpenWeatherMapAPIConfiguration getOpenWeatherMapAPIConfig() {
         return config;
+    }
+
+    public void setPWSDiscoveryService(OpenWeatherMapPWSDiscoveryService discoveryService) {
+        this.discoveryService = discoveryService;
+    }
+
+    /**
+     * Requests all personal weather stations from OpenWeatherMap API.
+     *
+     * @return all personal weather stations
+     */
+    public @Nullable List<OpenWeatherMapJsonStationData> getStations() {
+        try {
+            return connection.getStations();
+        } catch (OpenWeatherMapCommunicationException e) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getLocalizedMessage());
+        } catch (OpenWeatherMapConfigurationException e) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, e.getLocalizedMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Registers a personal weather station via OpenWeatherMap API and triggers discovery.
+     *
+     * @param name name of the PWS
+     * @param location location location of the PWS represented as {@link PointType}
+     * @return the weather station
+     */
+    public @Nullable OpenWeatherMapJsonStationData registerStation(final String name, final @Nullable String externalId,
+            final @Nullable PointType location) {
+        try {
+            OpenWeatherMapJsonStationData station = connection.registerStation(name,
+                    externalId == null ? thing.getUID().getAsString() : externalId,
+                    location == null ? locationProvider.getLocation() : location);
+            if (discoveryService != null && station != null) {
+                discoveryService.onStationAdded(station);
+            }
+            return station;
+        } catch (OpenWeatherMapCommunicationException e) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getLocalizedMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Deletes a personal weather station via OpenWeatherMap API and cleans-up discovery.
+     *
+     * @param stationId the id of the PWS
+     * @return true, if the PWS is successfully deleted
+     */
+    public boolean deleteStation(final String stationId) {
+        boolean deleted = false;
+        try {
+            deleted = connection.deleteStation(stationId);
+            if (discoveryService != null && deleted) {
+                discoveryService.onStationDeleted(stationId);
+            }
+        } catch (OpenWeatherMapCommunicationException e) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getLocalizedMessage());
+        }
+        return deleted;
+    }
+
+    /**
+     * Sends the measurements of all personal weather stations.
+     */
+    public void sendMeasurements() {
+        ThingStatus status = ThingStatus.OFFLINE;
+        for (Thing thing : getThing().getThings()) {
+            ThingHandler thingHandler = thing.getHandler();
+            if (thingHandler instanceof OpenWeatherMapPWSHandler) {
+                if (ThingStatus.ONLINE.equals(sendMeasurements((OpenWeatherMapPWSHandler) thingHandler, thing))) {
+                    status = ThingStatus.ONLINE;
+                }
+            }
+        }
+        updateStatus(status);
+    }
+
+    private ThingStatus sendMeasurements(final @Nullable OpenWeatherMapPWSHandler handler, final Thing thing) {
+        if (handler != null) {
+            handler.sendMeasurements(connection);
+            return thing.getStatus();
+        } else {
+            logger.debug("Cannot send measurements of thing '{}' as handler is null.", thing.getUID());
+            return ThingStatus.OFFLINE;
+        }
+    }
+
+    /**
+     * Clears the measurement caches of all personal weather stations.
+     */
+    public void clearMeasurements() {
+        for (Thing thing : getThing().getThings()) {
+            ThingHandler thingHandler = thing.getHandler();
+            if (thingHandler instanceof OpenWeatherMapPWSHandler) {
+                ((OpenWeatherMapPWSHandler) thingHandler).clearMeasurements();
+            }
+        }
+    }
+
+    /**
+     * Gets the measurement history of a personal weather station from OpenWeatherMap API.
+     *
+     * @param stationId the id of the PWS
+     * @return the measurement history
+     */
+    public @Nullable List<OpenWeatherMapJsonMeasurementsData> getMeasurements(final String stationId) {
+        try {
+            return connection.getMeasurements(stationId);
+        } catch (OpenWeatherMapCommunicationException e) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getLocalizedMessage());
+        } catch (OpenWeatherMapConfigurationException e) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, e.getLocalizedMessage());
+        }
+        return null;
     }
 }

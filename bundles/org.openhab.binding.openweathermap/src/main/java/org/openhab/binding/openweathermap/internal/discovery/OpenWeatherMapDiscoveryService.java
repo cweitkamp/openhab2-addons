@@ -53,7 +53,7 @@ public class OpenWeatherMapDiscoveryService extends AbstractDiscoveryService {
     private final OpenWeatherMapAPIHandler bridgeHandler;
 
     /**
-     * Creates an OpenWeatherMapLocationDiscoveryService.
+     * Creates an OpenWeatherMapDiscoveryService.
      */
     public OpenWeatherMapDiscoveryService(OpenWeatherMapAPIHandler bridgeHandler, LocationProvider locationProvider,
             LocaleProvider localeProvider, TranslationProvider i18nProvider) {
@@ -113,8 +113,8 @@ public class OpenWeatherMapDiscoveryService extends AbstractDiscoveryService {
         if (currentLocation == null) {
             logger.debug("Location is not set -> Will not provide any discovery results.");
         } else if (!Objects.equals(currentLocation, previousLocation)) {
-            logger.debug("Location has been changed from {} to {} -> Creating new discovery results.", previousLocation,
-                    currentLocation);
+            logger.debug("Location has been changed from '{}' to '{}' -> Creating new discovery results.",
+                    previousLocation, currentLocation);
             createResults(currentLocation);
             previousLocation = currentLocation;
         } else {

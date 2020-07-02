@@ -12,26 +12,33 @@
  */
 package org.openhab.binding.openweathermap.internal.connection;
 
-import static java.util.stream.Collectors.joining;
-import static org.eclipse.jetty.http.HttpMethod.GET;
+import static org.eclipse.jetty.http.HttpMethod.*;
 import static org.eclipse.jetty.http.HttpStatus.*;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpResponseException;
 import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.util.StringContentProvider;
+import org.eclipse.jetty.http.HttpMethod;
+import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.smarthome.core.cache.ExpiringCacheMap;
 import org.eclipse.smarthome.core.library.types.PointType;
 import org.eclipse.smarthome.core.library.types.RawType;
@@ -41,6 +48,8 @@ import org.openhab.binding.openweathermap.internal.dto.OpenWeatherMapJsonDailyFo
 import org.openhab.binding.openweathermap.internal.dto.OpenWeatherMapJsonHourlyForecastData;
 import org.openhab.binding.openweathermap.internal.dto.OpenWeatherMapJsonUVIndexData;
 import org.openhab.binding.openweathermap.internal.dto.OpenWeatherMapJsonWeatherData;
+import org.openhab.binding.openweathermap.internal.dto.stations.OpenWeatherMapJsonMeasurementsData;
+import org.openhab.binding.openweathermap.internal.dto.stations.OpenWeatherMapJsonStationData;
 import org.openhab.binding.openweathermap.internal.handler.OpenWeatherMapAPIHandler;
 import org.openhab.binding.openweathermap.internal.utils.ByteArrayFileCache;
 import org.slf4j.Logger;
@@ -64,7 +73,8 @@ public class OpenWeatherMapConnection {
 
     private static final String PROPERTY_MESSAGE = "message";
 
-    private static final String PNG_CONTENT_TYPE = "image/png";
+    private static final String CONTENT_TYPE_APPLICATION_JSON = MimeTypes.Type.APPLICATION_JSON.toString();
+    private static final String CONTENT_TYPE_IMAGE_PNG = "image/png";
 
     private static final String PARAM_APPID = "appid";
     private static final String PARAM_UNITS = "units";
@@ -84,6 +94,10 @@ public class OpenWeatherMapConnection {
     private static final String UVINDEX_FORECAST_URL = "https://api.openweathermap.org/data/2.5/uvi/forecast";
     // Weather icons (see https://openweathermap.org/weather-conditions)
     private static final String ICON_URL = "https://openweathermap.org/img/w/%s.png";
+    // Weather stations (see https://openweathermap.org/stations)
+    private static final String STATIONS_URL = "https://api.openweathermap.org/data/3.0/stations";
+    // Measurements for station (see https://openweathermap.org/stations#measurement)
+    private static final String MEASUREMENTS_URL = "http://api.openweathermap.org/data/3.0/measurements";
 
     private final OpenWeatherMapAPIHandler handler;
     private final HttpClient httpClient;
@@ -222,9 +236,133 @@ public class OpenWeatherMapConnection {
         return downloadWeatherIconFromCache(String.format(ICON_URL, iconId));
     }
 
+    /**
+     * Requests all personal weather stations (see https://openweathermap.org/stations#get_stations).
+     *
+     * @return all personal weather stations
+     * @throws JsonSyntaxException
+     * @throws OpenWeatherMapCommunicationException
+     * @throws OpenWeatherMapConfigurationException
+     */
+    public synchronized @Nullable List<OpenWeatherMapJsonStationData> getStations()
+            throws JsonSyntaxException, OpenWeatherMapCommunicationException, OpenWeatherMapConfigurationException {
+        // get all stations (see https://openweathermap.org/stations#get_stations)
+        return Arrays.asList(gson.fromJson(
+                getResponse(buildURL(STATIONS_URL, getBaseRequestParams(handler.getOpenWeatherMapAPIConfig()))),
+                OpenWeatherMapJsonStationData[].class));
+    }
+
+    /**
+     * Requests a personal weather station (see https://openweathermap.org/stations#get_station).
+     *
+     * @param stationId the id of the PWS
+     * @return the weather station
+     * @throws JsonSyntaxException
+     * @throws OpenWeatherMapCommunicationException
+     * @throws OpenWeatherMapConfigurationException
+     */
+    public synchronized @Nullable OpenWeatherMapJsonStationData getStation(final String stationId)
+            throws JsonSyntaxException, OpenWeatherMapCommunicationException, OpenWeatherMapConfigurationException {
+        // get station https://openweathermap.org/stations#get_station
+        return gson.fromJson(
+                getResponse(buildURL(STATIONS_URL + '/' + encodeParam(stationId),
+                        getBaseRequestParams(handler.getOpenWeatherMapAPIConfig()))),
+                OpenWeatherMapJsonStationData.class);
+    }
+
+    /**
+     * Registers a personal weather station (see https://openweathermap.org/stations#create_station).
+     *
+     * @param name name of the PWS
+     * @param externalId an external id of the PWS
+     * @param location location of the PWS represented as {@link PointType}
+     * @return the weather station
+     * @throws JsonSyntaxException
+     * @throws OpenWeatherMapCommunicationException
+     * @throws OpenWeatherMapConfigurationException
+     */
+    public synchronized @Nullable OpenWeatherMapJsonStationData registerStation(final String name,
+            final String externalId, final @Nullable PointType location)
+            throws JsonSyntaxException, OpenWeatherMapCommunicationException, OpenWeatherMapConfigurationException {
+        if (location == null) {
+            throw new OpenWeatherMapConfigurationException("@text/offline.conf-error-missing-location");
+        }
+
+        final JsonObject body = new JsonObject();
+        body.addProperty("name", name);
+        body.addProperty("external_id", externalId);
+        body.addProperty("latitude", location.getLatitude().doubleValue());
+        body.addProperty("longitude", location.getLongitude().doubleValue());
+        body.addProperty("altitude", location.getAltitude().doubleValue());
+
+        // register station (see https://openweathermap.org/stations#create_station)
+        return gson.fromJson(
+                getResponse(buildURL(STATIONS_URL, getBaseRequestParams(handler.getOpenWeatherMapAPIConfig())), POST,
+                        body.toString()),
+                OpenWeatherMapJsonStationData.class);
+    }
+
+    /**
+     * Deletes a personal weather station (see https://openweathermap.org/stations#create_station).
+     *
+     * @param stationId the id of the PWS
+     * @return <code>true</code>, if the PWS is successfully deleted
+     * @throws OpenWeatherMapCommunicationException
+     * @throws OpenWeatherMapConfigurationException
+     */
+    public synchronized boolean deleteStation(final String stationId)
+            throws OpenWeatherMapCommunicationException, OpenWeatherMapConfigurationException {
+        // delete station (see https://openweathermap.org/stations#delete_station)
+        final String response = getResponse(buildURL(STATIONS_URL + '/' + encodeParam(stationId),
+                getBaseRequestParams(handler.getOpenWeatherMapAPIConfig())), DELETE);
+        return response.isEmpty();
+    }
+
+    /**
+     * Sends measurements of a personal weather station (see https://openweathermap.org/stations#measurement).
+     *
+     * @param measurements list of {@link OpenWeatherMapJsonMeasurementsData}
+     * @return <code>true</code>, if measurements of the PWS are successfully send
+     * @throws OpenWeatherMapCommunicationException
+     * @throws OpenWeatherMapConfigurationException
+     */
+    public synchronized boolean sendMeasurements(final Collection<OpenWeatherMapJsonMeasurementsData> measurements)
+            throws OpenWeatherMapCommunicationException, OpenWeatherMapConfigurationException {
+        // send measurements (see https://openweathermap.org/stations#measurement)
+        final String response = getResponse(
+                buildURL(MEASUREMENTS_URL, getBaseRequestParams(handler.getOpenWeatherMapAPIConfig())), POST,
+                gson.toJson(measurements));
+        return response.isEmpty();
+    }
+
+    /**
+     * Gets the measurement history of a personal weather station (see
+     * https://openweathermap.org/stations#get_measurements).
+     *
+     * @param stationId the id of the PWS
+     * @return the measurement history
+     * @throws JsonSyntaxException
+     * @throws OpenWeatherMapCommunicationException
+     * @throws OpenWeatherMapConfigurationException
+     */
+    public synchronized List<OpenWeatherMapJsonMeasurementsData> getMeasurements(final String stationId)
+            throws JsonSyntaxException, OpenWeatherMapCommunicationException, OpenWeatherMapConfigurationException {
+        final Map<String, String> params = getBaseRequestParams(handler.getOpenWeatherMapAPIConfig());
+        params.put("station_id", stationId);
+        params.put("type", "h");
+        params.put("limit", "100");
+        final ZonedDateTime today = ZonedDateTime.now().truncatedTo(ChronoUnit.DAYS);
+        params.put("from", Long.toString(today.toEpochSecond()));
+        params.put("to", Long.toString(today.plusDays(1L).toEpochSecond()));
+
+        // get measurements (see https://openweathermap.org/stations#get_measurements)
+        return Arrays.asList(gson.fromJson(getResponseFromCache(buildURL(MEASUREMENTS_URL, params)),
+                OpenWeatherMapJsonMeasurementsData[].class));
+    }
+
     private static @Nullable RawType downloadWeatherIconFromCache(String url) {
         if (IMAGE_CACHE.containsKey(url)) {
-            return new RawType(IMAGE_CACHE.get(url), PNG_CONTENT_TYPE);
+            return new RawType(IMAGE_CACHE.get(url), CONTENT_TYPE_IMAGE_PNG);
         } else {
             RawType image = downloadWeatherIcon(url);
             if (image != null) {
@@ -239,18 +377,13 @@ public class OpenWeatherMapConnection {
         return HttpUtil.downloadImage(url);
     }
 
-    private Map<String, String> getRequestParams(OpenWeatherMapAPIConfiguration config, @Nullable PointType location) {
+    private Map<String, String> getRequestParams(OpenWeatherMapAPIConfiguration config, @Nullable PointType location)
+            throws OpenWeatherMapConfigurationException {
         if (location == null) {
             throw new OpenWeatherMapConfigurationException("@text/offline.conf-error-missing-location");
         }
 
-        Map<String, String> params = new HashMap<>();
-        // API key (see http://openweathermap.org/appid)
-        String apikey = config.apikey;
-        if (apikey == null || (apikey = apikey.trim()).isEmpty()) {
-            throw new OpenWeatherMapConfigurationException("@text/offline.conf-error-missing-apikey");
-        }
-        params.put(PARAM_APPID, apikey);
+        final Map<String, String> params = getBaseRequestParams(config);
 
         // Units format (see https://openweathermap.org/current#data)
         params.put(PARAM_UNITS, "metric");
@@ -267,9 +400,21 @@ public class OpenWeatherMapConnection {
         return params;
     }
 
+    private Map<String, String> getBaseRequestParams(final OpenWeatherMapAPIConfiguration config)
+            throws OpenWeatherMapConfigurationException {
+        final Map<String, String> params = new HashMap<>();
+        // API key (see http://openweathermap.org/appid)
+        String apikey = config.apikey;
+        if (apikey == null || (apikey = apikey.trim()).isEmpty()) {
+            throw new OpenWeatherMapConfigurationException("@text/offline.conf-error-missing-apikey");
+        }
+        params.put(PARAM_APPID, apikey);
+        return params;
+    }
+
     private String buildURL(String url, Map<String, String> requestParams) {
         return requestParams.keySet().stream().map(key -> key + "=" + encodeParam(requestParams.get(key)))
-                .collect(joining("&", url + "?", ""));
+                .collect(Collectors.joining("&", url + "?", ""));
     }
 
     private String encodeParam(String value) {
@@ -285,19 +430,33 @@ public class OpenWeatherMapConnection {
         return cache.putIfAbsentAndGet(url, () -> getResponse(url));
     }
 
-    private String getResponse(String url) {
+    private String getResponse(final String url) {
+        return getResponse(url, GET);
+    }
+
+    private String getResponse(final String url, final HttpMethod method) {
+        return getResponse(url, method, null);
+    }
+
+    private String getResponse(final String url, final HttpMethod method, final @Nullable String body) {
         try {
             if (logger.isTraceEnabled()) {
-                logger.trace("OpenWeatherMap request: URL = '{}'", uglifyApikey(url));
+                logger.trace("OpenWeatherMap request: {} - URL = '{}'", method, uglifyApikey(url));
             }
-            ContentResponse contentResponse = httpClient.newRequest(url).method(GET).timeout(10, TimeUnit.SECONDS)
-                    .send();
+            Request request = httpClient.newRequest(url).method(method).timeout(10, TimeUnit.SECONDS);
+            if (body != null) {
+                logger.trace("OpenWeatherMap request: BODY = '{}'", body);
+                request.content(new StringContentProvider(CONTENT_TYPE_APPLICATION_JSON, body, StandardCharsets.UTF_8));
+            }
+            ContentResponse contentResponse = request.send();
             int httpStatus = contentResponse.getStatus();
             String content = contentResponse.getContentAsString();
             String errorMessage = "";
             logger.trace("OpenWeatherMap response: status = {}, content = '{}'", httpStatus, content);
             switch (httpStatus) {
                 case OK_200:
+                case CREATED_201:
+                case NO_CONTENT_204:
                     return content;
                 case BAD_REQUEST_400:
                 case UNAUTHORIZED_401:

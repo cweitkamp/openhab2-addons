@@ -41,6 +41,7 @@ import org.eclipse.smarthome.io.net.http.HttpClientFactory;
 import org.openhab.binding.openweathermap.internal.discovery.OpenWeatherMapDiscoveryService;
 import org.openhab.binding.openweathermap.internal.handler.AbstractOpenWeatherMapHandler;
 import org.openhab.binding.openweathermap.internal.handler.OpenWeatherMapAPIHandler;
+import org.openhab.binding.openweathermap.internal.handler.OpenWeatherMapPWSHandler;
 import org.openhab.binding.openweathermap.internal.handler.OpenWeatherMapUVIndexHandler;
 import org.openhab.binding.openweathermap.internal.handler.OpenWeatherMapWeatherAndForecastHandler;
 import org.osgi.framework.ServiceRegistration;
@@ -57,9 +58,11 @@ import org.osgi.service.component.annotations.Reference;
 @Component(service = ThingHandlerFactory.class, configurationPid = "binding.openweathermap")
 public class OpenWeatherMapHandlerFactory extends BaseThingHandlerFactory {
 
-    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Collections
-            .unmodifiableSet(Stream.concat(OpenWeatherMapAPIHandler.SUPPORTED_THING_TYPES.stream(),
-                    AbstractOpenWeatherMapHandler.SUPPORTED_THING_TYPES.stream()).collect(Collectors.toSet()));
+    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Collections.unmodifiableSet(Stream
+            .of(OpenWeatherMapAPIHandler.SUPPORTED_THING_TYPES.stream(),
+                    AbstractOpenWeatherMapHandler.SUPPORTED_THING_TYPES.stream(),
+                    OpenWeatherMapPWSHandler.SUPPORTED_THING_TYPES.stream())
+            .reduce(Stream::concat).orElseGet(Stream::empty).collect(Collectors.toSet()));
 
     private final Map<ThingUID, @Nullable ServiceRegistration<?>> discoveryServiceRegs = new HashMap<>();
     private final HttpClient httpClient;
@@ -89,7 +92,8 @@ public class OpenWeatherMapHandlerFactory extends BaseThingHandlerFactory {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
         if (THING_TYPE_WEATHER_API.equals(thingTypeUID)) {
-            OpenWeatherMapAPIHandler handler = new OpenWeatherMapAPIHandler((Bridge) thing, httpClient, localeProvider);
+            OpenWeatherMapAPIHandler handler = new OpenWeatherMapAPIHandler((Bridge) thing, httpClient,
+                    locationProvider, localeProvider);
             // register discovery service
             OpenWeatherMapDiscoveryService discoveryService = new OpenWeatherMapDiscoveryService(handler,
                     locationProvider, localeProvider, i18nProvider);
@@ -100,6 +104,8 @@ public class OpenWeatherMapHandlerFactory extends BaseThingHandlerFactory {
             return new OpenWeatherMapWeatherAndForecastHandler(thing, timeZoneProvider);
         } else if (THING_TYPE_UVINDEX.equals(thingTypeUID)) {
             return new OpenWeatherMapUVIndexHandler(thing, timeZoneProvider);
+        } else if (THING_TYPE_PWS.equals(thingTypeUID)) {
+            return new OpenWeatherMapPWSHandler(thing, timeZoneProvider);
         }
 
         return null;

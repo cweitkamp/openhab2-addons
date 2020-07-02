@@ -29,10 +29,11 @@ import org.openhab.binding.openweathermap.internal.handler.OpenWeatherMapAPIHand
  */
 @NonNullByDefault
 public class OpenWeatherMapAPIConfiguration {
-    // supported languages (see https://openweathermap.org/current#multi)
-    public static final Set<String> SUPPORTED_LANGUAGES = Collections.unmodifiableSet(Stream.of("ar", "bg", "ca", "cz",
-            "de", "el", "en", "es", "fa", "fi", "fr", "gl", "hr", "hu", "it", "ja", "kr", "la", "lt", "mk", "nl", "pl",
-            "pt", "ro", "ru", "se", "sk", "sl", "tr", "ua", "vi", "zh_cn", "zh_tw").collect(Collectors.toSet()));
+    // supported languages (see https://openweathermap.org/api/one-call-api#multi)
+    public static final Set<String> SUPPORTED_LANGUAGES = Collections.unmodifiableSet(Stream.of("af", "al", "ar", "az",
+            "bg", "ca", "cz", "da", "de", "el", "en", "es", "eu", "fa", "fi", "fr", "gl", "he", "hi", "hr", "hu", "id",
+            "it", "ja", "kr", "la", "lt", "mk", "nl", "no", "pl", "pt", "pt_br", "ro", "ru", "se", "sk", "sl", "sp",
+            "sr", "sv", "th", "tr", "ua", "uk", "vi", "zh_cn", "zh_tw", "zu").collect(Collectors.toSet()));
 
     public @Nullable String apikey;
     public int refreshInterval;
