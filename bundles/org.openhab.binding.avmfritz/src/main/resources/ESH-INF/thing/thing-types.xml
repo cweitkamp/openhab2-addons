@@ -29,6 +29,37 @@
 		<config-description-ref uri="thing-type:avmfritz:fritzdevice"/>
 	</thing-type>
 
+	<thing-type id="FRITZ_DECT_440">
+		<supported-bridge-type-refs>
+			<bridge-type-ref id="fritzbox"/>
+			<bridge-type-ref id="FRITZ_Powerline_546E_Solo"/>
+		</supported-bridge-type-refs>
+
+		<label>FRITZ!DECT 440</label>
+		<description>FRITZ!DECT440 switch.</description>
+
+		<channel-groups>
+			<channel-group id="top-left" typeId="button">
+				<label>Top Left Button</label>
+			</channel-group>
+			<channel-group id="top-right" typeId="button">
+				<label>Top Right Button</label>
+			</channel-group>
+			<channel-group id="bottom-left" typeId="button">
+				<label>Bottom Left Button</label>
+			</channel-group>
+			<channel-group id="bottom-right" typeId="button">
+				<label>Bottom Right Button</label>
+			</channel-group>
+			<channel-group id="device" typeId="device"/>
+			<channel-group id="sensors" typeId="sensors"/>
+		</channel-groups>
+
+		<representation-property>ain</representation-property>
+
+		<config-description-ref uri="thing-type:avmfritz:fritzdevice"/>
+	</thing-type>
+
 	<thing-type id="Comet_DECT">
 		<supported-bridge-type-refs>
 			<bridge-type-ref id="fritzbox"/>

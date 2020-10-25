@@ -152,7 +152,7 @@ public abstract class AVMFritzBaseThingHandler extends BaseThingHandler implemen
         }
     }
 
-    private void updateTemperatureSensor(@Nullable TemperatureModel temperatureModel) {
+    protected void updateTemperatureSensor(@Nullable TemperatureModel temperatureModel) {
         if (temperatureModel != null) {
             updateThingChannelState(CHANNEL_TEMPERATURE,
                     new QuantityType<>(temperatureModel.getCelsius(), SIUnits.CELSIUS));
@@ -192,14 +192,21 @@ public abstract class AVMFritzBaseThingHandler extends BaseThingHandler implemen
     }
 
     protected void updateBattery(BatteryModel batteryModel) {
+        updateBattery(batteryModel, null);
+    }
+
+    protected void updateBattery(BatteryModel batteryModel, @Nullable String channelGroupId) {
         BigDecimal batteryLevel = batteryModel.getBattery();
-        updateThingChannelState(CHANNEL_BATTERY,
+        updateThingChannelState(channelGroupId == null ? CHANNEL_BATTERY : channelGroupId + "#" + CHANNEL_BATTERY,
                 batteryLevel == null ? UnDefType.UNDEF : new DecimalType(batteryLevel));
         BigDecimal lowBattery = batteryModel.getBatterylow();
         if (lowBattery == null) {
-            updateThingChannelState(CHANNEL_BATTERY_LOW, UnDefType.UNDEF);
+            updateThingChannelState(
+                    channelGroupId == null ? CHANNEL_BATTERY_LOW : channelGroupId + "#" + CHANNEL_BATTERY_LOW,
+                    UnDefType.UNDEF);
         } else {
-            updateThingChannelState(CHANNEL_BATTERY_LOW,
+            updateThingChannelState(
+                    channelGroupId == null ? CHANNEL_BATTERY_LOW : channelGroupId + "#" + CHANNEL_BATTERY_LOW,
                     BatteryModel.BATTERY_ON.equals(lowBattery) ? OnOffType.ON : OnOffType.OFF);
         }
     }
@@ -281,7 +288,7 @@ public abstract class AVMFritzBaseThingHandler extends BaseThingHandler implemen
      * @param configId ID of the configuration to be updated.
      * @param value Value to be set.
      */
-    private void updateThingChannelConfiguration(String channelId, String configId, Object value) {
+    protected void updateThingChannelConfiguration(String channelId, String configId, Object value) {
         Channel channel = thing.getChannel(channelId);
         if (channel != null) {
             Configuration editConfig = channel.getConfiguration();
