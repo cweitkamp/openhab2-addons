@@ -31,6 +31,7 @@ import javax.xml.bind.annotation.XmlType;
 public class DeviceModel extends AVMFritzBaseModel {
 
     private TemperatureModel temperature;
+    private HumidityModel humidity;
     private AlertModel alert;
 
     @XmlElement(name = "button", type = ButtonModel.class)
@@ -46,6 +47,14 @@ public class DeviceModel extends AVMFritzBaseModel {
         this.temperature = temperatureModel;
     }
 
+    public HumidityModel getHumidity() {
+        return humidity;
+    }
+
+    public void setTemperature(HumidityModel humidityModel) {
+        this.humidity = humidityModel;
+    }
+
     public AlertModel getAlert() {
         return alert;
     }
@@ -55,10 +64,7 @@ public class DeviceModel extends AVMFritzBaseModel {
     }
 
     public List<ButtonModel> getButtons() {
-        if (buttons == null) {
-            return Collections.emptyList();
-        }
-        return buttons;
+        return buttons == null ? Collections.emptyList() : buttons;
     }
 
     public void setButtons(List<ButtonModel> buttons) {
@@ -75,12 +81,11 @@ public class DeviceModel extends AVMFritzBaseModel {
 
     @Override
     public String toString() {
-        return new StringBuilder().append(super.toString()).append(temperature).append(",").append(alert).append(",")
-                .append(getButtons()).append(",").append(etsiunitinfo).append("]").toString();
+        return new StringBuilder().append(super.toString()).append(temperature).append(",").append(humidity).append(",")
+                .append(alert).append(",").append(getButtons()).append(",").append(etsiunitinfo).append("]").toString();
     }
 
     @XmlAccessorType(XmlAccessType.FIELD)
-    @XmlType(propOrder = { "etsideviceid", "unittype", "interfaces" })
     public static class ETSUnitInfoModel {
         public static final String HAN_FUN_UNITTYPE_SIMPLE_BUTTON = "273";
         public static final String HAN_FUN_UNITTYPE_SIMPLE_DETECTOR = "512";

@@ -98,6 +98,7 @@ public class AVMFritzDeviceListModelTest {
         assertTrue(device.isDectRepeater());
         assertFalse(device.isSwitchableOutlet());
         assertTrue(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertFalse(device.isPowermeter());
         assertFalse(device.isHeatingThermostat());
 
@@ -134,6 +135,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertTrue(device.isSwitchableOutlet());
         assertTrue(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertTrue(device.isPowermeter());
         assertFalse(device.isHeatingThermostat());
 
@@ -174,6 +176,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertTrue(device.isSwitchableOutlet());
         assertTrue(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertTrue(device.isPowermeter());
         assertFalse(device.isHeatingThermostat());
 
@@ -214,6 +217,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertFalse(device.isSwitchableOutlet());
         assertTrue(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertFalse(device.isPowermeter());
         assertTrue(device.isHeatingThermostat());
 
@@ -250,6 +254,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertFalse(device.isSwitchableOutlet());
         assertTrue(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertFalse(device.isPowermeter());
         assertTrue(device.isHeatingThermostat());
 
@@ -286,6 +291,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertFalse(device.isSwitchableOutlet());
         assertTrue(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertFalse(device.isPowermeter());
         assertTrue(device.isHeatingThermostat());
 
@@ -322,6 +328,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertFalse(device.isSwitchableOutlet());
         assertFalse(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertFalse(device.isPowermeter());
         assertFalse(device.isHeatingThermostat());
 
@@ -367,6 +374,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertTrue(device.isSwitchableOutlet());
         assertFalse(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertTrue(device.isPowermeter());
         assertFalse(device.isHeatingThermostat());
 
@@ -405,6 +413,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertFalse(device.isSwitchableOutlet());
         assertFalse(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertFalse(device.isPowermeter());
         assertFalse(device.isHeatingThermostat());
 
@@ -444,6 +453,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(device.isDectRepeater());
         assertFalse(device.isSwitchableOutlet());
         assertFalse(device.isTempSensor());
+        assertFalse(device.isHumiditySensor());
         assertFalse(device.isPowermeter());
         assertFalse(device.isHeatingThermostat());
 
@@ -483,6 +493,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(group.isDectRepeater());
         assertFalse(group.isSwitchableOutlet());
         assertFalse(group.isTempSensor());
+        assertFalse(group.isHumiditySensor());
         assertFalse(group.isPowermeter());
         assertTrue(group.isHeatingThermostat());
 
@@ -519,6 +530,7 @@ public class AVMFritzDeviceListModelTest {
         assertFalse(group.isDectRepeater());
         assertTrue(group.isSwitchableOutlet());
         assertFalse(group.isTempSensor());
+        assertFalse(group.isHumiditySensor());
         assertTrue(group.isPowermeter());
         assertFalse(group.isHeatingThermostat());
 
