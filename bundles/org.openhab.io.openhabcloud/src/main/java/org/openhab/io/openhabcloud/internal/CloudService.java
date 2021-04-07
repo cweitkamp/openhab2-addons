@@ -27,6 +27,7 @@ import java.util.Set;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.openhab.core.OpenHAB;
 import org.openhab.core.config.core.ConfigurableService;
 import org.openhab.core.events.Event;
@@ -35,6 +36,7 @@ import org.openhab.core.events.EventPublisher;
 import org.openhab.core.events.EventSubscriber;
 import org.openhab.core.id.InstanceUUID;
 import org.openhab.core.io.net.http.HttpClientFactory;
+import org.openhab.core.io.net.http.WebSocketFactory;
 import org.openhab.core.items.Item;
 import org.openhab.core.items.ItemNotFoundException;
 import org.openhab.core.items.ItemRegistry;
@@ -63,7 +65,8 @@ import org.slf4j.LoggerFactory;
  * This class starts the cloud connection service and implements interface to communicate with the cloud.
  *
  * @author Victor Belov - Initial contribution
- * @author Kai Kreuzer - migrated code to new Jetty client and ESH APIs
+ * @author Kai Kreuzer - migrated code to new Jetty HttpClient and ESH APIs
+ * @author Christoph Weitkamp - migrated to Jetty WebSocketClient
  */
 @NonNullByDefault
 @Component(service = { CloudService.class, EventSubscriber.class,
@@ -87,6 +90,7 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
 
     public static @Nullable String clientVersion;
     private @Nullable CloudClient cloudClient;
+    private final WebSocketClient webSocketClient;
     private final HttpClient httpClient;
     protected final ItemRegistry itemRegistry;
     protected final EventPublisher eventPublisher;
@@ -96,9 +100,13 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
     private int localPort;
 
     @Activate
-    public CloudService(final @Reference HttpClientFactory httpClientFactory, //
+    public CloudService(final @Reference WebSocketFactory webSocketFactory, //
+            final @Reference HttpClientFactory httpClientFactory, //
             final @Reference ItemRegistry itemRegistry, //
             final @Reference EventPublisher eventPublisher) {
+        this.webSocketClient = webSocketFactory.createWebSocketClient(CLIENT_NAME);
+        this.webSocketClient.setMaxIdleTimeout(0);
+
         this.httpClient = httpClientFactory.createHttpClient(CLIENT_NAME);
         this.httpClient.setStopTimeout(0);
         this.httpClient.setMaxConnectionsPerDestination(DEFAULT_LOCAL_OPENHAB_MAX_CONCURRENT_REQUESTS);
@@ -238,7 +246,9 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
             }
         }
 
-        logger.debug("UUID = {}, secret = {}", InstanceUUID.get(), getSecret());
+        String uuid = InstanceUUID.get();
+        String secret = getSecret();
+        logger.debug("UUID = {}, secret = {}, base URL = {}", uuid, secret, baseUrl);
 
         CloudClient client = cloudClient;
         if (client != null) {
@@ -254,8 +264,8 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
         }
 
         String localBaseUrl = "http://localhost:" + localPort;
-        client = new CloudClient(httpClient, InstanceUUID.get(), getSecret(), baseUrl, localBaseUrl,
-                remoteAccessEnabled, exposedItems);
+        client = new CloudClient(webSocketClient, httpClient, uuid, secret, baseUrl, localBaseUrl, remoteAccessEnabled,
+                exposedItems);
         client.connect();
         client.setListener(this);
 
