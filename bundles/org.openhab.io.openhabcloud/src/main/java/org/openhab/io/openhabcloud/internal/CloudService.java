@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.openhab.core.OpenHAB;
@@ -64,6 +65,7 @@ import org.slf4j.LoggerFactory;
  * @author Victor Belov - Initial contribution
  * @author Kai Kreuzer - migrated code to new Jetty client and ESH APIs
  */
+@NonNullByDefault
 @Component(service = { CloudService.class, EventSubscriber.class,
         ActionService.class }, configurationPid = "org.openhab.openhabcloud", property = Constants.SERVICE_PID
                 + "=org.openhab.openhabcloud")
@@ -77,27 +79,27 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
     private static final String DEFAULT_URL = "https://myopenhab.org/";
     private static final int DEFAULT_LOCAL_OPENHAB_MAX_CONCURRENT_REQUESTS = 200;
     private static final int DEFAULT_LOCAL_OPENHAB_REQUEST_TIMEOUT = 30000;
-    private static final String HTTPCLIENT_NAME = "openhabcloud";
+    private static final String CLIENT_NAME = "openhabcloud";
     private static final String CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final SecureRandom SR = new SecureRandom();
 
     private final Logger logger = LoggerFactory.getLogger(CloudService.class);
 
-    public static String clientVersion = null;
-    private CloudClient cloudClient;
-    private String cloudBaseUrl = null;
+    public static @Nullable String clientVersion;
+    private @Nullable CloudClient cloudClient;
     private final HttpClient httpClient;
     protected final ItemRegistry itemRegistry;
     protected final EventPublisher eventPublisher;
 
     private boolean remoteAccessEnabled = true;
-    private Set<String> exposedItems = null;
+    private final Set<String> exposedItems = new HashSet<>();
     private int localPort;
 
     @Activate
-    public CloudService(final @Reference HttpClientFactory httpClientFactory,
-            final @Reference ItemRegistry itemRegistry, final @Reference EventPublisher eventPublisher) {
-        this.httpClient = httpClientFactory.createHttpClient(HTTPCLIENT_NAME);
+    public CloudService(final @Reference HttpClientFactory httpClientFactory, //
+            final @Reference ItemRegistry itemRegistry, //
+            final @Reference EventPublisher eventPublisher) {
+        this.httpClient = httpClientFactory.createHttpClient(CLIENT_NAME);
         this.httpClient.setStopTimeout(0);
         this.httpClient.setMaxConnectionsPerDestination(DEFAULT_LOCAL_OPENHAB_MAX_CONCURRENT_REQUESTS);
         this.httpClient.setConnectTimeout(DEFAULT_LOCAL_OPENHAB_REQUEST_TIMEOUT);
@@ -116,8 +118,11 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
      * @param severity the {@link String} containing severity (good, info, warning, error) of notification
      */
     public void sendNotification(String userId, String message, @Nullable String icon, @Nullable String severity) {
-        logger.debug("Sending message '{}' to user id {}", message, userId);
-        cloudClient.sendNotification(userId, message, icon, severity);
+        CloudClient client = cloudClient;
+        if (client != null) {
+            logger.debug("Sending message '{}' to user id {}", message, userId);
+            client.sendNotification(userId, message, icon, severity);
+        }
     }
 
     /**
@@ -129,8 +134,11 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
      * @param severity the {@link String} containing severity (good, info, warning, error) of notification
      */
     public void sendLogNotification(String message, @Nullable String icon, @Nullable String severity) {
-        logger.debug("Sending log message '{}'", message);
-        cloudClient.sendLogNotification(message, icon, severity);
+        CloudClient client = cloudClient;
+        if (client != null) {
+            logger.debug("Sending log message '{}'", message);
+            client.sendLogNotification(message, icon, severity);
+        }
     }
 
     /**
@@ -142,8 +150,11 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
      * @param severity the {@link String} containing severity (good, info, warning, error) of notification
      */
     public void sendBroadcastNotification(String message, @Nullable String icon, @Nullable String severity) {
-        logger.debug("Sending broadcast message '{}' to all users", message);
-        cloudClient.sendBroadcastNotification(message, icon, severity);
+        CloudClient client = cloudClient;
+        if (client != null) {
+            logger.debug("Broadcasting message '{}' to all users", message);
+            client.sendBroadcastNotification(message, icon, severity);
+        }
     }
 
     private String substringBefore(String str, String separator) {
@@ -166,14 +177,14 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
 
     private void checkJavaVersion() {
         String version = System.getProperty("java.version");
-        if (version.charAt(2) == '8') {
+        if (version != null && version.charAt(2) == '8') {
             // we are on Java 8, let's check the update
             String update = version.substring(version.indexOf('_') + 1);
             try {
                 Integer uVersion = Integer.valueOf(update);
                 if (uVersion < 101) {
                     logger.warn(
-                            "You are running Java {} - the openhab Cloud connection requires at least Java 1.8.0_101, if your cloud server uses Let's Encrypt certificates!",
+                            "You are running Java {} - the openHAB Cloud connection requires at least Java 1.8.0_101, if your cloud server uses Let's Encrypt certificates!",
                             version);
                 }
             } catch (NumberFormatException e) {
@@ -185,7 +196,10 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
     @Deactivate
     protected void deactivate() {
         logger.debug("openHAB Cloud connector deactivated");
-        cloudClient.shutdown();
+        CloudClient client = cloudClient;
+        if (client != null) {
+            client.shutdown();
+        }
         try {
             httpClient.stop();
         } catch (Exception e) {
@@ -195,19 +209,17 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
 
     @Modified
     protected void modified(Map<String, ?> config) {
-        if (config != null && config.get(CFG_MODE) != null) {
-            remoteAccessEnabled = "remote".equals(config.get(CFG_MODE));
+        Object modeCfg = config.get(CFG_MODE);
+        if (modeCfg != null) {
+            remoteAccessEnabled = "remote".equals(modeCfg);
         } else {
             logger.debug("remoteAccessEnabled is not set, keeping value '{}'", remoteAccessEnabled);
         }
 
-        if (config.get(CFG_BASE_URL) != null) {
-            cloudBaseUrl = (String) config.get(CFG_BASE_URL);
-        } else {
-            cloudBaseUrl = DEFAULT_URL;
-        }
+        Object baseURLCfg = config.get(CFG_BASE_URL);
+        String baseUrl = baseURLCfg != null ? (String) baseURLCfg : DEFAULT_URL;
 
-        exposedItems = new HashSet<>();
+        exposedItems.clear();
         Object expCfg = config.get(CFG_EXPOSE);
         if (expCfg instanceof String) {
             String value = (String) expCfg;
@@ -228,8 +240,9 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
 
         logger.debug("UUID = {}, secret = {}", InstanceUUID.get(), getSecret());
 
-        if (cloudClient != null) {
-            cloudClient.shutdown();
+        CloudClient client = cloudClient;
+        if (client != null) {
+            client.shutdown();
         }
 
         if (!httpClient.isRunning()) {
@@ -241,11 +254,13 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
         }
 
         String localBaseUrl = "http://localhost:" + localPort;
-        cloudClient = new CloudClient(httpClient, InstanceUUID.get(), getSecret(), cloudBaseUrl, localBaseUrl,
+        client = new CloudClient(httpClient, InstanceUUID.get(), getSecret(), baseUrl, localBaseUrl,
                 remoteAccessEnabled, exposedItems);
-        cloudClient.setOpenHABVersion(OpenHAB.getVersion());
-        cloudClient.connect();
-        cloudClient.setListener(this);
+        client.connect();
+        client.setListener(this);
+
+        cloudClient = client;
+
         NotificationAction.cloudService = this;
     }
 
@@ -358,15 +373,16 @@ public class CloudService implements ActionService, CloudClientListener, EventSu
     }
 
     @Override
-    public EventFilter getEventFilter() {
+    public @Nullable EventFilter getEventFilter() {
         return null;
     }
 
     @Override
     public void receive(Event event) {
+        CloudClient client = cloudClient;
         ItemStateEvent ise = (ItemStateEvent) event;
-        if (exposedItems != null && exposedItems.contains(ise.getItemName())) {
-            cloudClient.sendItemUpdate(ise.getItemName(), ise.getItemState().toString());
+        if (client != null && exposedItems.contains(ise.getItemName())) {
+            client.sendItemUpdate(ise.getItemName(), ise.getItemState().toString());
         }
     }
 }

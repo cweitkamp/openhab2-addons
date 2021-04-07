@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class NotificationAction {
 
-    private static final Logger logger = LoggerFactory.getLogger(NotificationAction.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NotificationAction.class);
 
     public static @Nullable CloudService cloudService;
 
@@ -57,7 +57,7 @@ public class NotificationAction {
     @ActionDoc(text = "Sends a push notification to mobile devices of user with userId")
     public static void sendNotification(String userId, String message, @Nullable String icon,
             @Nullable String severity) {
-        logger.debug("sending notification '{}' to user {}", message, userId);
+        LOGGER.debug("sending notification '{}' to user {}", message, userId);
         if (cloudService != null) {
             cloudService.sendNotification(userId, message, icon, severity);
         }
@@ -86,7 +86,7 @@ public class NotificationAction {
      */
     @ActionDoc(text = "Sends a log notification which is shown in notifications log to all account users")
     public static void sendLogNotification(String message, @Nullable String icon, @Nullable String severity) {
-        logger.debug("sending log notification '{}'", message);
+        LOGGER.debug("sending log notification '{}'", message);
         if (cloudService != null) {
             cloudService.sendLogNotification(message, icon, severity);
         }
@@ -115,7 +115,7 @@ public class NotificationAction {
      */
     @ActionDoc(text = "Sends a push notification to mobile devices of user with userId")
     public static void sendBroadcastNotification(String message, @Nullable String icon, @Nullable String severity) {
-        logger.debug("sending broadcast notification '{}' to all users", message);
+        LOGGER.debug("broadcasting notification '{}' to all users", message);
         if (cloudService != null) {
             cloudService.sendBroadcastNotification(message, icon, severity);
         }

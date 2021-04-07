@@ -19,6 +19,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -106,15 +107,10 @@ public class CloudClient {
     private boolean isConnected;
 
     /*
-     * This variable holds version of local openHAB
-     */
-    private String openHABVersion;
-
-    /*
      * This variable holds instance of Socket.IO client class which provides communication
      * with the openHAB Cloud
      */
-    private Socket socket;
+    private @Nullable Socket socket;
 
     /*
      * The protocol of the openHAB-cloud URL.
@@ -125,9 +121,9 @@ public class CloudClient {
      * This variable holds instance of CloudClientListener which provides callbacks to communicate
      * certain events from the openHAB Cloud back to openHAB
      */
-    private CloudClientListener listener;
+    private @Nullable CloudClientListener listener;
     private boolean remoteAccessEnabled;
-    private Set<String> exposedItems;
+    private final Set<String> exposedItems;
 
     /**
      * Constructor of CloudClient
@@ -175,8 +171,10 @@ public class CloudClient {
                         Map<String, List<String>> headers = (Map<String, List<String>>) args[0];
                         headers.put("uuid", List.of(uuid));
                         headers.put("secret", List.of(secret));
-                        headers.put("openhabversion", List.of(OpenHAB.getVersion()));
-                        headers.put("clientversion", List.of(CloudService.clientVersion));
+                        String openHABVersion = OpenHAB.getVersion();
+                        headers.put("openhabversion", List.of(openHABVersion));
+                        String clientVersion = CloudService.clientVersion;
+                        headers.put("clientversion", List.of(clientVersion == null ? openHABVersion : clientVersion));
                         headers.put("remoteaccess", List.of(((Boolean) remoteAccessEnabled).toString()));
                     }
                 });
@@ -216,7 +214,6 @@ public class CloudClient {
                 onEvent("cancel", (JSONObject) args[0]);
             }
         }).on("command", new Emitter.Listener() {
-
             @Override
             public void call(Object... args) {
                 onEvent("command", (JSONObject) args[0]);
@@ -230,7 +227,7 @@ public class CloudClient {
      */
 
     public void onConnect() {
-        logger.info("Connected to the openHAB Cloud service (UUID = {}, base URL = {})", this.uuid, this.localBaseUrl);
+        logger.info("Connected to the openHAB Cloud service (UUID = {}, base URL = {})", uuid, localBaseUrl);
         isConnected = true;
     }
 
@@ -239,8 +236,7 @@ public class CloudClient {
      */
 
     public void onDisconnect() {
-        logger.info("Disconnected from the openHAB Cloud service (UUID = {}, base URL = {})", this.uuid,
-                this.localBaseUrl);
+        logger.info("Disconnected from the openHAB Cloud service (UUID = {}, base URL = {})", uuid, localBaseUrl);
         isConnected = false;
         // And clean up the list of running requests
         runningRequests.clear();
@@ -300,7 +296,7 @@ public class CloudClient {
                 String queryName = queryIterator.next();
                 newPath += queryName;
                 newPath += "=";
-                newPath += URLEncoder.encode(requestQueryJson.getString(queryName), "UTF-8");
+                newPath += URLEncoder.encode(requestQueryJson.getString(queryName), StandardCharsets.UTF_8);
                 if (queryIterator.hasNext()) {
                     newPath += "&";
                 }
@@ -318,26 +314,29 @@ public class CloudClient {
                 proto = data.getString("protocol");
             }
             request.header("X-Forwarded-Proto", proto);
-
-            if (requestMethod.equals("GET")) {
-                request.method(HttpMethod.GET);
-            } else if (requestMethod.equals("POST")) {
-                request.method(HttpMethod.POST);
-                request.content(new BytesContentProvider(requestBody.getBytes()));
-            } else if (requestMethod.equals("PUT")) {
-                request.method(HttpMethod.PUT);
-                request.content(new BytesContentProvider(requestBody.getBytes()));
-            } else {
-                // TODO: Reject unsupported methods
-                logger.warn("Unsupported request method {}", requestMethod);
-                return;
+            switch (requestMethod) {
+                case "GET":
+                    request.method(HttpMethod.GET);
+                    break;
+                case "POST":
+                    request.method(HttpMethod.POST);
+                    request.content(new BytesContentProvider(requestBody.getBytes()));
+                    break;
+                case "PUT":
+                    request.method(HttpMethod.PUT);
+                    request.content(new BytesContentProvider(requestBody.getBytes()));
+                    break;
+                default:
+                    // TODO: Reject unsupported methods
+                    logger.warn("Unsupported request method {}", requestMethod);
+                    return;
             }
             ResponseListener listener = new ResponseListener(requestId);
             request.onResponseHeaders(listener).onResponseContent(listener).onRequestFailure(listener).send(listener);
             // If successfully submitted request to http client, add it to the list of currently
             // running requests to be able to cancel it if needed
             runningRequests.put(requestId, request);
-        } catch (JSONException | IOException | URISyntaxException e) {
+        } catch (JSONException | URISyntaxException e) {
             logger.debug("{}", e.getMessage());
         }
     }
@@ -500,14 +499,6 @@ public class CloudClient {
         socket.disconnect();
     }
 
-    public String getOpenHABVersion() {
-        return openHABVersion;
-    }
-
-    public void setOpenHABVersion(String openHABVersion) {
-        this.openHABVersion = openHABVersion;
-    }
-
     public void setListener(CloudClientListener listener) {
         this.listener = listener;
     }
@@ -519,7 +510,7 @@ public class CloudClient {
             implements Response.CompleteListener, HeadersListener, ContentListener, FailureListener {
 
         private static final String THREADPOOL_OPENHABCLOUD = "openhabcloud";
-        private int mRequestId;
+        private final int mRequestId;
         private boolean mHeadersSent = false;
 
         public ResponseListener(int requestId) {
@@ -539,7 +530,7 @@ public class CloudClient {
         }
 
         @Override
-        public void onComplete(Result result) {
+        public void onComplete(@Nullable Result result) {
             // Remove this request from list of running requests
             runningRequests.remove(mRequestId);
             if ((result != null && result.isFailed())
@@ -573,7 +564,7 @@ public class CloudClient {
         }
 
         @Override
-        public synchronized void onFailure(Request request, Throwable failure) {
+        public synchronized void onFailure(@Nullable Request request, @Nullable Throwable failure) {
             JSONObject responseJson = new JSONObject();
             try {
                 responseJson.put("id", mRequestId);
@@ -585,7 +576,7 @@ public class CloudClient {
         }
 
         @Override
-        public void onContent(Response response, ByteBuffer content) {
+        public void onContent(@Nullable Response response, @Nullable ByteBuffer content) {
             logger.debug("Jetty received response content of size {}", String.valueOf(content.remaining()));
             JSONObject responseJson = new JSONObject();
             try {
@@ -599,7 +590,7 @@ public class CloudClient {
         }
 
         @Override
-        public void onHeaders(Response response) {
+        public void onHeaders(@Nullable Response response) {
             if (!mHeadersSent) {
                 logger.debug("Jetty finished receiving response header");
                 JSONObject responseJson = new JSONObject();
