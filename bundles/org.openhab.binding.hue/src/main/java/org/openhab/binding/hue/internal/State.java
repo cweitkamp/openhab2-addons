@@ -26,7 +26,7 @@ public class State {
     int bri;
     int hue;
     int sat;
-    private float[] xy;
+    private double[] xy;
     int ct;
     private String alert;
     private String effect;
@@ -148,11 +148,11 @@ public class State {
      *
      * @return cie color spaces coordinates
      */
-    public float[] getXY() {
+    public double[] getXY() {
         return xy;
     }
 
-    public void setXY(float[] xy) {
+    public void setXY(double[] xy) {
         this.xy = xy;
     }
 

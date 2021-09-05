@@ -232,13 +232,13 @@ public class HueLightHandlerTest {
 
     @Test
     public void assertXYCommandForColorChannelWhite() {
-        String expectedReply = "{\"xy\" : [ 0.31271592 , 0.32900152 ], \"bri\" : 254, \"transitiontime\" : 4}";
+        String expectedReply = "{\"xy\" : [ 0.3227,0.329 ], \"bri\" : 254, \"transitiontime\" : 4}";
         assertSendCommandForColor(HSBType.WHITE, new HueLightState().colormode(ColorMode.XY), expectedReply);
     }
 
     @Test
     public void assertXYCommandForColorChannelColorful() {
-        String expectedReply = "{\"xy\" : [ 0.16969365 , 0.12379659 ], \"bri\" : 127, \"transitiontime\" : 4}";
+        String expectedReply = "{\"xy\" : [ 0.1465, 0.1156 ], \"bri\" : 127, \"transitiontime\" : 4}";
         assertSendCommandForColor(new HSBType("220,90,50"), new HueLightState().colormode(ColorMode.XY), expectedReply);
     }
 

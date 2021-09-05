@@ -14,6 +14,7 @@ package org.openhab.binding.hue.internal.handler;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.hue.internal.ColorUtil;
 import org.openhab.binding.hue.internal.State;
 import org.openhab.binding.hue.internal.State.AlertMode;
 import org.openhab.binding.hue.internal.State.ColorMode;
@@ -88,11 +89,9 @@ public class LightStateConverter {
     }
 
     private static StateUpdate toXYColorLightState(HSBType hsbType) {
-        PercentType[] xy = hsbType.toXY();
-        float x = xy[0].floatValue() / 100.0f;
-        float y = xy[1].floatValue() / 100.0f;
+        double[] xy = ColorUtil.hsbToXY(hsbType);
 
-        return new StateUpdate().setXY(x, y);
+        return new StateUpdate().setXY(xy[0], xy[1]);
     }
 
     /**
@@ -271,8 +270,7 @@ public class LightStateConverter {
     }
 
     private static HSBType fromXYtoHSBType(State lightState) {
-        float[] xy = lightState.getXY();
-        HSBType hsb = HSBType.fromXY(xy[0], xy[1]);
+        HSBType hsb = ColorUtil.xyToHsv(lightState.getXY());
 
         int brightnessInPercent = (int) Math.ceil(lightState.getBrightness() / BRIGHTNESS_FACTOR);
         brightnessInPercent = restrictToBounds(brightnessInPercent);

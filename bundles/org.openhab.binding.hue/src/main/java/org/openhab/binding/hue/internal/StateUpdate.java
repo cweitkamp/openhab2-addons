@@ -67,7 +67,7 @@ public class StateUpdate extends ConfigUpdate {
      */
     public StateUpdate setBrightness(int brightness) {
         if (brightness < 1 || brightness > 254) {
-            throw new IllegalArgumentException("Brightness out of range");
+            throw new IllegalArgumentException(String.format("Brightness out of range: %d", brightness));
         }
 
         commands.add(new Command("bri", brightness));
@@ -116,8 +116,8 @@ public class StateUpdate extends ConfigUpdate {
      * @param y y coordinate [0..1]
      * @return this object for chaining calls
      */
-    public StateUpdate setXY(float x, float y) {
-        return setXY(new float[] { x, y });
+    public StateUpdate setXY(double x, double y) {
+        return setXY(new double[] { x, y });
     }
 
     /**
@@ -126,7 +126,7 @@ public class StateUpdate extends ConfigUpdate {
      * @param xy x and y coordinates [0..1, 0..1]
      * @return this object for chaining calls
      */
-    public StateUpdate setXY(float[] xy) {
+    public StateUpdate setXY(double[] xy) {
         if (xy.length != 2) {
             throw new IllegalArgumentException("Invalid coordinate array given");
         } else if (xy[0] < 0.0f || xy[0] > 1.0f || xy[1] < 0.0f || xy[1] > 1.0f) {
