@@ -45,6 +45,7 @@ public class LightStateConverter {
     private static final double HUE_FACTOR = 65535 / 360.0;
     private static final double SATURATION_FACTOR = 2.54;
     private static final double BRIGHTNESS_FACTOR = 2.54;
+    private static final int BRIGHTNESS_MAX = 254;
 
     /**
      * {@value #ALERT_MODE_NONE}. The light is not performing an alert effect.
@@ -74,6 +75,7 @@ public class LightStateConverter {
         StateUpdate stateUpdate = ColorMode.HS.equals(lightState.getColorMode()) ? toHSBColorLightState(hsbType)
                 : toXYColorLightState(hsbType);
 
+        // original code is working
         int brightness = (int) Math.floor(hsbType.getBrightness().doubleValue() * BRIGHTNESS_FACTOR);
         if (brightness > 0) {
             stateUpdate.setBrightness(brightness);
@@ -85,13 +87,27 @@ public class LightStateConverter {
         int hue = (int) Math.round(hsbType.getHue().doubleValue() * HUE_FACTOR);
         int saturation = (int) Math.floor(hsbType.getSaturation().doubleValue() * SATURATION_FACTOR);
 
-        return new StateUpdate().setHue(hue).setSat(saturation);
+        StateUpdate stateUpdate = new StateUpdate().setHue(hue).setSat(saturation);
+
+        // default - like original code
+        // int brightness = (int) Math.floor(hsbType.getBrightness().doubleValue() * BRIGHTNESS_FACTOR);
+        // if (brightness > 0) {
+        // stateUpdate.setBrightness(brightness);
+        // }
+        return stateUpdate;
     }
 
     private static StateUpdate toXYColorLightState(HSBType hsbType) {
         double[] xy = ColorUtil.hsbToXY(hsbType);
 
-        return new StateUpdate().setXY(xy[0], xy[1]);
+        StateUpdate stateUpdate = new StateUpdate().setXY(xy[0], xy[1]);
+
+        // this does not work like expected
+        // int brightness = (int) xy[2] * BRIGHTNESS_MAX;
+        // if (brightness > 0) {
+        // stateUpdate.setBrightness(brightness);
+        // }
+        return stateUpdate;
     }
 
     /**
