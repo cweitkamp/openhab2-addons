@@ -15,6 +15,7 @@ package org.openhab.binding.pushover.internal.handler;
 import static org.openhab.binding.pushover.internal.PushoverBindingConstants.*;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -27,13 +28,14 @@ import org.openhab.binding.pushover.internal.config.PushoverConfigOptionProvider
 import org.openhab.binding.pushover.internal.connection.PushoverAPIConnection;
 import org.openhab.binding.pushover.internal.connection.PushoverMessageBuilder;
 import org.openhab.binding.pushover.internal.dto.Sound;
+import org.openhab.core.config.core.status.ConfigStatusMessage;
 import org.openhab.core.i18n.CommunicationException;
 import org.openhab.core.i18n.ConfigurationException;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.thing.ThingStatusDetail;
-import org.openhab.core.thing.binding.BaseThingHandler;
+import org.openhab.core.thing.binding.ConfigStatusThingHandler;
 import org.openhab.core.thing.binding.ThingHandlerService;
 import org.openhab.core.types.Command;
 
@@ -43,7 +45,20 @@ import org.openhab.core.types.Command;
  * @author Christoph Weitkamp - Initial contribution
  */
 @NonNullByDefault
-public class PushoverAccountHandler extends BaseThingHandler {
+public class PushoverAccountHandler extends ConfigStatusThingHandler {
+
+    private static final ConfigStatusMessage CONFIG_STATUS_MESSAGE_ERROR_MISSING_APIKEY = ConfigStatusMessage.Builder
+            .error(CONFIG_APIKEY).withMessageKeySuffix(CONFIG_STATUS_MESSAGE_MISSING_APIKEY)
+            .withArguments(CONFIG_APIKEY).build();
+    private static final ConfigStatusMessage CONFIG_STATUS_MESSAGE_ERROR_MISSING_USER = ConfigStatusMessage.Builder
+            .error(CONFIG_USER).withMessageKeySuffix(CONFIG_STATUS_MESSAGE_MISSING_USER).withArguments(CONFIG_USER)
+            .build();
+    private static final ConfigStatusMessage CONFIG_STATUS_MESSAGE_ERROR_INVALID_APIKEY = ConfigStatusMessage.Builder
+            .error(CONFIG_APIKEY).withMessageKeySuffix(CONFIG_STATUS_MESSAGE_INVALID_APIKEY)
+            .withArguments(CONFIG_APIKEY).build();
+    private static final ConfigStatusMessage CONFIG_STATUS_MESSAGE_ERROR_INVALID_USER = ConfigStatusMessage.Builder
+            .error(CONFIG_USER).withMessageKeySuffix(CONFIG_STATUS_MESSAGE_INVALID_USER).withArguments(CONFIG_USER)
+            .build();
 
     private static final Collection<Class<? extends ThingHandlerService>> SUPPORTED_THING_ACTIONS = Set
             .of(PushoverActions.class, PushoverConfigOptionProvider.class);
@@ -92,6 +107,31 @@ public class PushoverAccountHandler extends BaseThingHandler {
     @Override
     public Collection<Class<? extends ThingHandlerService>> getServices() {
         return SUPPORTED_THING_ACTIONS;
+    }
+
+    @Override
+    public Collection<ConfigStatusMessage> getConfigStatus() {
+        Set<ConfigStatusMessage> configStatusMessages = new HashSet<>();
+        PushoverAccountConfiguration accountConfig = getConfigAs(PushoverAccountConfiguration.class);
+        String apikey = accountConfig.apikey;
+        if (apikey == null || apikey.isBlank()) {
+            configStatusMessages.add(CONFIG_STATUS_MESSAGE_ERROR_MISSING_APIKEY);
+        }
+        String user = accountConfig.user;
+        if (user == null || user.isBlank()) {
+            configStatusMessages.add(CONFIG_STATUS_MESSAGE_ERROR_MISSING_USER);
+        } else if (connection != null) {
+            try {
+                connection.validateUser();
+            } catch (ConfigurationException e) {
+                configStatusMessages.add(CONFIG_STATUS_MESSAGE_ERROR_INVALID_USER);
+                // ["application token is invalid"]
+                // ["user key is invalid"]
+            } catch (CommunicationException e) {
+                // do nothing
+            }
+        }
+        return configStatusMessages;
     }
 
     /**

@@ -27,14 +27,23 @@ public class PushoverBindingConstants {
 
     public static final ThingTypeUID PUSHOVER_ACCOUNT = new ThingTypeUID(BINDING_ID, "pushover-account");
 
+    public static final String CONFIG_APIKEY = "apikey";
+    public static final String CONFIG_USER = "user";
     public static final String CONFIG_SOUND = "sound";
 
     public static final String DEFAULT_SOUND = "default";
     public static final String DEFAULT_TITLE = "openHAB";
 
+    public static final String CONFIG_STATUS_MESSAGE_MISSING_APIKEY = "missing-apikey";
+    public static final String CONFIG_STATUS_MESSAGE_MISSING_USER = "missing-user";
+    public static final String CONFIG_STATUS_MESSAGE_INVALID_APIKEY = "application-token-is-invalid";
+    public static final String CONFIG_STATUS_MESSAGE_INVALID_USER = "user-key-is-invalid";
+
     public static final String TEXT_OFFLINE_COMMUNICATION_ERROR = "@text/offline.communication-error";
-    public static final String TEXT_OFFLINE_CONF_ERROR_MISSING_APIKEY = "@text/offline.conf-error-missing-apikey";
-    public static final String TEXT_OFFLINE_CONF_ERROR_MISSING_USER = "@text/offline.conf-error-missing-user";
+    public static final String TEXT_OFFLINE_CONF_ERROR_MISSING_APIKEY = "@text/offline.conf-error-"
+            + CONFIG_STATUS_MESSAGE_MISSING_APIKEY;
+    public static final String TEXT_OFFLINE_CONF_ERROR_MISSING_USER = "@text/offline.conf-error-"
+            + CONFIG_STATUS_MESSAGE_MISSING_USER;
     public static final String TEXT_OFFLINE_CONF_ERROR_UNKNOWN = "@text/offline.conf-error-unknown";
     public static final String TEXT_ERROR_SKIP_SENDING_MESSAGE = "@text/error.skip-sending-message";
 }
