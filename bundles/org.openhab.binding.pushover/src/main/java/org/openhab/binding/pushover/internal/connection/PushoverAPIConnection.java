@@ -139,7 +139,7 @@ public class PushoverAPIConnection {
         return executeRequest(HttpMethod.POST, url, body);
     }
 
-    private synchronized String executeRequest(HttpMethod httpMethod, String url, @Nullable ContentProvider body)
+    synchronized String executeRequest(HttpMethod httpMethod, String url, @Nullable ContentProvider body)
             throws CommunicationException, ConfigurationException {
         logger.trace("Pushover request: {} - URL = '{}'", httpMethod, url);
         try {
@@ -163,7 +163,13 @@ public class PushoverAPIConnection {
                     return content;
                 case HttpStatus.BAD_REQUEST_400:
                     logger.debug("Pushover server responded with status code {}: {}", httpStatus, content);
-                    throw new ConfigurationException(getMessageError(content));
+                    String message = getMessageError(content);
+                    if (message.contains("application token is invalid") || message.contains("user key is invalid")) {
+                        throw new ConfigurationException(message);
+                    } else {
+                        // probably a wrong parameter (e.g. invalid receipt)
+                        throw new IllegalArgumentException(message);
+                    }
                 default:
                     logger.debug("Pushover server responded with status code {}: {}", httpStatus, content);
                     throw new CommunicationException(content);
@@ -195,8 +201,7 @@ public class PushoverAPIConnection {
     }
 
     private boolean getMessageStatus(String content) {
-        final JsonObject json = JsonParser.parseString(content).getAsJsonObject();
-        return json.has(JSON_VALUE_STATUS) ? json.get(JSON_VALUE_STATUS).getAsInt() == 1 : false;
+        return getMessageStatus(JsonParser.parseString(content).getAsJsonObject());
     }
 
     private boolean getMessageStatus(JsonObject json) {

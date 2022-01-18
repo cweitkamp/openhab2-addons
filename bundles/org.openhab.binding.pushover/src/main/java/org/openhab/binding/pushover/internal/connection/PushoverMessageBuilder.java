@@ -71,6 +71,12 @@ public class PushoverMessageBuilder {
     private static final int MAX_URL_TITLE_LENGTH = 100;
     public static final String DEFAULT_CONTENT_TYPE = "image/jpeg";
 
+    private static final StringContentProvider STRING_CONTENT_PROVIDER_MIN_RETRY_SECONDS = new StringContentProvider(
+            String.valueOf(MIN_RETRY_SECONDS));
+    private static final StringContentProvider STRING_CONTENT_PROVIDER_MAX_EXPIRE_SECONDS = new StringContentProvider(
+            String.valueOf(MAX_EXPIRE_SECONDS));
+    private static final StringContentProvider STRING_CONTENT_PROVIDER_1 = new StringContentProvider("1");
+
     private final MultiPartContentProvider body = new MultiPartContentProvider();
 
     private @Nullable String message;
@@ -87,7 +93,7 @@ public class PushoverMessageBuilder {
     private boolean html = false;
     private boolean monospace = false;
 
-    private PushoverMessageBuilder(String apikey, String user) throws ConfigurationException {
+    private PushoverMessageBuilder(String apikey, String user) {
         body.addFieldPart(MESSAGE_KEY_TOKEN, new StringContentProvider(apikey), null);
         body.addFieldPart(MESSAGE_KEY_USER, new StringContentProvider(user), null);
     }
@@ -170,6 +176,13 @@ public class PushoverMessageBuilder {
         return this;
     }
 
+    /**
+     *
+     *
+     * @return a {@link ContentProvider) instance
+     * @throws CommunicationException
+     * @throws IllegalArgumentException
+     */
     public ContentProvider build() throws CommunicationException {
         if (message != null) {
             if (message.length() > MAX_MESSAGE_LENGTH) {
@@ -203,8 +216,7 @@ public class PushoverMessageBuilder {
                     if (retry < MIN_RETRY_SECONDS) {
                         logger.warn("Retry value of {} is too small. Using default value of {}.", retry,
                                 MIN_RETRY_SECONDS);
-                        body.addFieldPart(MESSAGE_KEY_RETRY,
-                                new StringContentProvider(String.valueOf(MIN_RETRY_SECONDS)), null);
+                        body.addFieldPart(MESSAGE_KEY_RETRY, STRING_CONTENT_PROVIDER_MIN_RETRY_SECONDS, null);
                     } else {
                         body.addFieldPart(MESSAGE_KEY_RETRY, new StringContentProvider(String.valueOf(retry)), null);
                     }
@@ -214,8 +226,7 @@ public class PushoverMessageBuilder {
                     } else {
                         logger.warn("Expire value of {} is invalid. Using default value of {}.", expire,
                                 MAX_EXPIRE_SECONDS);
-                        body.addFieldPart(MESSAGE_KEY_EXPIRE,
-                                new StringContentProvider(String.valueOf(MAX_EXPIRE_SECONDS)), null);
+                        body.addFieldPart(MESSAGE_KEY_EXPIRE, STRING_CONTENT_PROVIDER_MAX_EXPIRE_SECONDS, null);
                     }
                 }
             } else {
@@ -275,9 +286,9 @@ public class PushoverMessageBuilder {
         }
 
         if (html) {
-            body.addFieldPart(MESSAGE_KEY_HTML, new StringContentProvider("1"), null);
+            body.addFieldPart(MESSAGE_KEY_HTML, STRING_CONTENT_PROVIDER_1, null);
         } else if (monospace) {
-            body.addFieldPart(MESSAGE_KEY_MONOSPACE, new StringContentProvider("1"), null);
+            body.addFieldPart(MESSAGE_KEY_MONOSPACE, STRING_CONTENT_PROVIDER_1, null);
         }
 
         return body;

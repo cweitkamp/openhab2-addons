@@ -46,7 +46,8 @@ public class PushoverActionsTest {
     private static final String TITLE = "My Title";
     private static final String URL = "https://www.test.com";
     private static final String URL_TITLE = "Some Link";
-    private static final String RECEIPT = "12345";
+    private static final String VALID_RECEIPT = "ri5fyf2y5z6ivgav55phcbmdogcpic";
+    private static final String INVALID_RECEIPT = "invalid";
 
     private final ThingActions thingActionsStub = new ThingActions() {
         @Override
@@ -69,8 +70,10 @@ public class PushoverActionsTest {
         when(mockPushoverAccountHandler.getDefaultPushoverMessageBuilder(any()))
                 .thenReturn(PushoverMessageBuilder.getInstance("key", "user"));
         when(mockPushoverAccountHandler.sendMessage(any())).thenReturn(Boolean.TRUE);
-        when(mockPushoverAccountHandler.sendPriorityMessage(any())).thenReturn(RECEIPT);
-        when(mockPushoverAccountHandler.cancelPriorityMessage(RECEIPT)).thenReturn(Boolean.TRUE);
+        when(mockPushoverAccountHandler.sendPriorityMessage(any())).thenReturn(VALID_RECEIPT);
+        when(mockPushoverAccountHandler.cancelPriorityMessage(VALID_RECEIPT)).thenReturn(Boolean.TRUE);
+        when(mockPushoverAccountHandler.cancelPriorityMessage(INVALID_RECEIPT))
+                .thenThrow(new IllegalArgumentException("[\"receipt not found; may be invalid or expired\"]"));
     }
 
     // sendMessage
@@ -150,7 +153,7 @@ public class PushoverActionsTest {
         pushoverThingActions.setThingHandler(mockPushoverAccountHandler);
         String receipt = PushoverActions.sendPriorityMessage(pushoverThingActions, MESSAGE, null,
                 PushoverMessageBuilder.EMERGENCY_PRIORITY);
-        assertThat(receipt, is(RECEIPT));
+        assertThat(receipt, is(VALID_RECEIPT));
     }
 
     @Test
@@ -158,32 +161,33 @@ public class PushoverActionsTest {
         pushoverThingActions.setThingHandler(mockPushoverAccountHandler);
         String receipt = PushoverActions.sendPriorityMessage(pushoverThingActions, MESSAGE, TITLE,
                 PushoverMessageBuilder.EMERGENCY_PRIORITY);
-        assertThat(receipt, is(RECEIPT));
+        assertThat(receipt, is(VALID_RECEIPT));
     }
 
     // cancelPriorityMessage
     @Test
     public void testCancelPriorityMessageThingActionsIsNotPushoverThingActions() {
-        assertThrows(ClassCastException.class, () -> PushoverActions.cancelPriorityMessage(thingActionsStub, RECEIPT));
+        assertThrows(ClassCastException.class,
+                () -> PushoverActions.cancelPriorityMessage(thingActionsStub, VALID_RECEIPT));
     }
 
     @Test
     public void testCancelPriorityMessageThingHandlerIsNull() {
         assertThrows(RuntimeException.class,
-                () -> PushoverActions.cancelPriorityMessage(pushoverThingActions, RECEIPT));
+                () -> PushoverActions.cancelPriorityMessage(pushoverThingActions, VALID_RECEIPT));
     }
 
     @Test
     public void testCancelPriorityMessageWithValidReceipt() {
         pushoverThingActions.setThingHandler(mockPushoverAccountHandler);
-        boolean cancelled = PushoverActions.cancelPriorityMessage(pushoverThingActions, RECEIPT);
+        boolean cancelled = PushoverActions.cancelPriorityMessage(pushoverThingActions, VALID_RECEIPT);
         assertThat(cancelled, is(true));
     }
 
     @Test
     public void testCancelPriorityMessageWithInvalidReceipt() {
         pushoverThingActions.setThingHandler(mockPushoverAccountHandler);
-        boolean cancelled = PushoverActions.cancelPriorityMessage(pushoverThingActions, "invalid");
-        assertThat(cancelled, is(false));
+        assertThrows(IllegalArgumentException.class,
+                () -> PushoverActions.cancelPriorityMessage(pushoverThingActions, INVALID_RECEIPT));
     }
 }

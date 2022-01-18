@@ -124,9 +124,14 @@ public class PushoverAccountHandler extends ConfigStatusThingHandler {
             try {
                 connection.validateUser();
             } catch (ConfigurationException e) {
-                configStatusMessages.add(CONFIG_STATUS_MESSAGE_ERROR_INVALID_USER);
-                // ["application token is invalid"]
-                // ["user key is invalid"]
+                String message = e.getMessage();
+                if (message != null) {
+                    if (message.contains("application token is invalid")) {
+                        configStatusMessages.add(CONFIG_STATUS_MESSAGE_ERROR_INVALID_APIKEY);
+                    } else if (message.contains("user key is invalid")) {
+                        configStatusMessages.add(CONFIG_STATUS_MESSAGE_ERROR_INVALID_USER);
+                    }
+                }
             } catch (CommunicationException e) {
                 // do nothing
             }
